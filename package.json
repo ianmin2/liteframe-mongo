@@ -1,0 +1,32 @@
+{
+  "name": "liteframe-mongo",
+  "version": "0.0.1",
+  "description": "A mongodb connection extension for liteframe & liteframe-core",
+  "main": "main.es6",
+  "scripts": {
+    "test": "No tests are currently defined"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ianmin2/liteframe-mongo.git"
+  },
+  "keywords": [
+    "Mongodb",
+    "liteframe",
+    "liteframe-core"
+  ],
+  "author": "Ian Innocent <ianmin2@live.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ianmin2/liteframe-mongo/issues"
+  },
+  "homepage": "https://github.com/ianmin2/liteframe-mongo#readme",
+  "dependencies": {
+    "mongoose": "^5.8.9",
+    "passport": "^0.4.1",
+    "passport-local": "^1.0.0",
+    "passport-local-mongoose": "^6.0.1",
+    "url": "^0.11.0",
+    "liteframe-micro": "^0.0.8"
+  }
+}
