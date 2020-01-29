@@ -1,0 +1,34 @@
+##! The Bixbyte Framify Spawned Application ".gitignore" file
+
+#!  Ignore all package manager folders and their content
+**node_modules/
+**bower_components
+
+//@ Ignore the development folder
+**dev/
+
+#!  Ignore all shadow files
+**~
+
+#! Ignore the authentication token store folder
+**auth
+
+#! Ignore all IDE project files
+**.project
+**.buildpath
+**.log
+**.settings
+**.conf
+
+#! Ignore all project generated files
+sysinfo.txt
+
+#! Ignore all backup files
+**.bak
+**backup/
+
+#! Ignore all test files and folders
+**tests/**
+
+#! Ignore all webkit builder folders
+**webkit**
