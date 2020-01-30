@@ -5,9 +5,9 @@ const Schema 	 = mongoose.Schema;
 const FKHelper   = require(`./helpers/FKHelper.js`);
 const passportLocalMongoose = require('passport-local-mongoose');
 
-/*
+
 //!EMAIL VERIFICATION
-const mailRegex = /^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/ig;
+const mailRegex = /^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|io|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/ig;
 
 //!PASSWORD VERIFICATION
 const passRegex = /^[-@./\!\$\%\^|#&,+\w\s]{6,50}$/ig;
@@ -17,7 +17,6 @@ const userRegex = /^[a-z0-9_-]{4,16}$/ig;
 
 //!TELEPHONE VERIFICATION
 const telRegex  = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/igm;
-
 //!IS FILLED VERIFICATION
 const isFilled = /[.+]/ig;
 
@@ -27,7 +26,7 @@ const isMD5 = /^[a-f0-9]{32}$/gm;
 //!IS BASE64 REGEX
 const isBase64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$/ig;
 
-*/
+
 //--==========================================================================================================
 //  Organization
 const organizationSchema = new Schema({
@@ -40,7 +39,7 @@ const organizationSchema = new Schema({
         type        : String,
         validate: {
             validator: function(v) {
-              return telRegex.test(v);
+              return /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/igm.test(v);
             },
             message: props => `${props.value} is not a valid phone number!`
         },
@@ -50,7 +49,7 @@ const organizationSchema = new Schema({
         type        : String,
         validate: {
             validator: function(v) {
-              return mailRegex.test(v);
+              return /^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|io|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/ig.test(v);
             },
             message: props => `${props.value} is not a valid email address!`
         },
@@ -72,7 +71,10 @@ const organizationSchema = new Schema({
     }
 
 });
-exports.Organization = mongoose.model("Organization",organizationSchema);
+const Organization = mongoose.model("Organization",organizationSchema);
+
+
+exports.Organization = Organization;
 
 //--==========================================================================================================
 //  Service
@@ -106,19 +108,27 @@ const serviceSchema = new Schema({
         default     : true, 
     },
 });
-exports.Service = mongoose.model("Service",serviceSchema);
+const Service   = mongoose.model("Service",serviceSchema); 
+exports.Service = Service;
 
 //--==========================================================================================================
 //  Subscription
 const subscriptionSchema = new Schema({
     sub_org         :
     {
-        type        : Number,
-        required    : [true,"A subscription organization is required."],
+		type: String,
+		ref: 'Organization',
+		validate: {
+			isAsync: true,
+			validator: function(v) {
+				return FKHelper(mongoose.model('Organization'), v);
+			},
+			message: `The provided Organization does not exist.`
+		}
     },
     sub_service     :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Service',
 		validate: {
 			isAsync: true,
@@ -139,7 +149,10 @@ const subscriptionSchema = new Schema({
         default     : true, 
     },
 });
-exports.Subscription = mongoose.model("Subscription",subscriptionSchema);
+const Subscription      = mongoose.model("Subscription",subscriptionSchema);
+
+
+exports.Subscription = Subscription;
 
 //--==========================================================================================================
 //  PaymentMethod
@@ -165,14 +178,18 @@ const paymentMethodSchema = new Schema({
         default     : true, 
     },
 });
-exports.PaymentMethod = mongoose.model("PaymentMethod",paymentMethodSchema);
+
+const PaymentMethod = mongoose.model("PaymentMethod",paymentMethodSchema);
+
+
+exports.PaymentMethod = PaymentMethod;
 
 //--==========================================================================================================
 //  Payment
 const paymentSchema = new Schema({
     pay_org     :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Organization',
 		validate: {
 			isAsync: true,
@@ -188,7 +205,7 @@ const paymentSchema = new Schema({
     },
     pay_method     :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'PaymentMethod',
 		validate: {
 			isAsync: true,
@@ -200,7 +217,7 @@ const paymentSchema = new Schema({
     },
     pay_services    :
     [{      
-        type: Schema.ObjectId,
+        type: String,
         ref: 'Service',
         validate: {
             isAsync: true,
@@ -230,7 +247,20 @@ const paymentSchema = new Schema({
         default     : true, 
     },
 });
-exports.Payment = mongoose.model("Payment",paymentSchema);
+
+paymentSchema.index({
+    pay_org     : 1,
+    pay_token   : 1,
+}, {
+    unique      : [true, "That payment has already been effected. Please contact support for assistance"],
+    name        :  "unique payment token per scope"
+});
+
+
+const Payment = mongoose.model("Payment",paymentSchema);
+
+
+exports.Payment = Payment;
 
 //--==========================================================================================================
 //  Member
@@ -258,7 +288,7 @@ const memberSchema = new Schema({
     },
     organization     :
     {
-		type: Schema.ObjectId,
+		type: {},
 		ref: 'Organization',
 		validate: {
 			isAsync: true,
@@ -273,7 +303,7 @@ const memberSchema = new Schema({
         type        : String,
         validate: {
             validator: function(v) {
-              return mailRegex.test(v);
+              return /^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|io|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/ig.test(v);
             },
             message: props => `${props.value} is not a valid email address!`
         },
@@ -282,7 +312,7 @@ const memberSchema = new Schema({
     password        :
     {
         type        : String,
-        required    : [true, "A user password is required"],
+        // required    : [true, "A user password is required"],
         validate    : 
         {
             validator : v => passRegex.test(v),
@@ -294,7 +324,7 @@ const memberSchema = new Schema({
     {
         type        : String,
         default     : 'client',
-		// type: Schema.ObjectId,
+		// type: String,
 		// ref: 'Organization',
 		// validate: {
 		// 	isAsync: true,
@@ -309,7 +339,7 @@ const memberSchema = new Schema({
         type        : String,
         validate: {
             validator: function(v) {
-              return telRegex.test(v);
+              return /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/igm.test(v);
             },
             message: props => `${props.value} is not a valid phone number`
         },
@@ -338,7 +368,24 @@ memberSchema.plugin(passportLocalMongoose, {
     maxAttempts         : 12,
     usernameQueryFields : ["account.name"],
 });
-exports.Member = mongoose.model("Member",memberSchema);
+
+const Member = mongoose.model("Member",memberSchema);
+//# Load the main member
+// Member.register({
+//     "name.first"        : 'User',
+//     "name.last"         : 'Administrator',
+//     "account.name"      : 'userAdmin',
+//     email               : 'useradmin@bixbyte.io',
+//     role                : 'admin',
+//     telephone           : '0725678447',
+//     organization        : 
+// }, 'ianmin2')
+// .catch(console.dir);
+
+
+
+
+exports.Member = Member;
 
 //--==========================================================================================================
 //  PasswordRecovery
@@ -346,7 +393,7 @@ const passwordRecoverySchema = new Schema({
 
     member    :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Member',
 		validate: {
 			isAsync: true,
@@ -384,12 +431,11 @@ exports.PasswordRecovery = mongoose.model("PasswordRecovery",passwordRecoverySch
 const groupSchema = new Schema({
     group_name : {
         type        : String,
-        required    : [true, "A group name is required"],
-        unique      : [true, "A group by that name has already been defined"]
+        required    : [true, "A group name is required"],       
     },
     group_organization    :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Organization',
 		validate: {
 			isAsync: true,
@@ -410,7 +456,21 @@ const groupSchema = new Schema({
         default     : true, 
     },
 });
-exports.Group = mongoose.model("Group",groupSchema);
+
+//# define a much needed composite key
+groupSchema.index({
+    group_name : 1,
+    group_organization : 1,
+}, {
+    unique      : [true, "A group by that name has already been defined for the defined scope"],
+    name        : "unique group name per scope"
+});
+
+const Group     = mongoose.model("Group",groupSchema);
+
+
+
+exports.Group   =  Group;
 
 //--==========================================================================================================
 //  GroupMembers
@@ -426,7 +486,7 @@ const groupMemberSchema = new Schema({
 
     mem_group    :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Group',
 		validate: {
 			isAsync: true,
@@ -441,7 +501,7 @@ const groupMemberSchema = new Schema({
         type        : String,
         validate: {
             validator: function(v) {
-              return mailRegex.test(v);
+              return /^[-a-z0-9~!$%^&*_=+}{\'?]+(\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\.[-a-z0-9_]+)*\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|io|[a-z][a-z])|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}))(:[0-9]{1,5})?$/ig.test(v);
             },
             message: props => `${props.value} is not a valid email address!`
         },
@@ -451,7 +511,7 @@ const groupMemberSchema = new Schema({
         type        : String,
         validate: {
             validator: function(v) {
-              return mailRegex.test(v);
+              return /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/igm.test(v);
             },
             message: props => `${props.value} is not a valid phone number!`
         },
@@ -480,27 +540,35 @@ groupMemberSchema.index({
 groupMemberSchema.index({
     mem_email: 1, mem_group: 1
 }, {
-    unique : [true, "That email address is already registered to the group."]
+    unique : [true, "That email address is already registered to the group."],
+    name   : "unique email address per group"
 });
 
 groupMemberSchema.index({
     mem_phone: 1, mem_group: 1
 }, {
-    unique : [true, "That phone number is already registered to the group."]
+    unique : [true, "That phone number is already registered to the group."],
+    name    : "unique phone number per group"
 });
-exports.GroupMember = mongoose.model("GroupMember",groupMemberSchema);
+
+const GroupMember   = mongoose.model("GroupMember",groupMemberSchema);
+
+
+exports.GroupMember = GroupMember;
 
 //--==========================================================================================================
 //  Template
 const templateSchema = new Schema({
     t_name : {
         type        : String,
-        required    : [true, "A template name is required"],
-        unique      : [true, "A template by that name has already been defined"]
+        required    : [true, "A template name is required"],       
+    },
+    t_content       : {
+        type        : mongoose.Schema.Types.Mixed,
     },
     t_organization    :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Organization',
 		validate: {
 			isAsync: true,
@@ -521,7 +589,20 @@ const templateSchema = new Schema({
         default     : true, 
     },
 });
-exports.Template = mongoose.model("Template",templateSchema);
+
+templateSchema.index({
+    t_name: 1, t_organization: 1
+}, {
+    unique      : [true, "A template by that name has already been defined for the current context."],
+    name        : "unique template name per scope"
+});
+
+
+const Template   = mongoose.model("Template", templateSchema);
+
+
+
+exports.Template = Template;
 
 //--==========================================================================================================
 //  Log
@@ -532,7 +613,7 @@ const logSchema = new Schema({
     },
     log_organization    :
     {
-		type: Schema.ObjectId,
+		type: String,
 		ref: 'Organization',
 		validate: {
 			isAsync: true,
@@ -563,6 +644,41 @@ const logSchema = new Schema({
 });
 exports.Log = mongoose.model("Log",logSchema);
 
+//--==========================================================================================================
+// Metadata
+
+const MetaDataSchema = new Schema({
+    member          :
+    {
+		type: String,
+		ref: 'Member',
+		validate: {
+			isAsync: true,
+			validator: function(v) {
+				return FKHelper(mongoose.model('Member'), v);
+			},
+			message: `The provided member does not exist.`
+		}
+    },
+    organization    : 
+    {
+		type: String,
+		ref: 'Organization',
+		validate: {
+			isAsync: true,
+			validator: function(v) {
+				return FKHelper(mongoose.model('Organization'), v);
+			},
+			message: `The provided organization does not exist.`
+		}
+    },
+    added           : 
+    {
+        type        : Date,
+        default     : new Date(),
+    },
+});
+const MetaData = mongoose.model("Metadata",MetaDataSchema);
 /*
 //--==========================================================================================================
 //--==========================================================================================================
@@ -692,3 +808,149 @@ const SMSContactTagSchema = new Schema({
 });
 exports.SMSContactTag = mongoose.model("SMSContactTag",SMSContactTagSchema);
 */
+
+
+//--==========================================================================================================
+//--==========================================================================================================
+//--==========================================================================================================
+//# Perform database initialization [where applicable]
+
+//# Define the main organization
+Organization.create({    
+    org_name        : "Bixbyte Solutions",
+    org_telephone   : "+254725678447",
+    org_email       : "info@bixbyte.io",
+    org_code        : "pm_bx_001"
+})
+.then(function(res){
+
+    c_log(`Initializing database schema`.info)
+
+    let org = res._doc._id;
+
+    //# Load the main member
+    Member.register({
+        "name.first"        : 'User',
+        "name.last"         : 'Administrator',
+        "account.name"      : 'userAdmin',
+        email               : 'useradmin@bixbyte.io',
+        role                : 'admin',
+        telephone           : '0725678447',
+        organization        : org
+    }, 'ianmin2')
+    .then(function(m_info){
+
+        let mem = m_info._doc._id;
+
+        //# Load the application power entities
+        MetaData.create({
+            organization    : org,
+            member          : mem
+        }).then(d=>c_log(`\nApplication registry initialized.\n`.succ));
+
+    })
+    .then(d=>c_log(`\nMain Member initialized.\n`.succ));
+
+
+    
+    //# Load the main organization groups
+    Group.insertMany([
+        {
+            group_name          : 'Auxiliary',
+            group_organization  : org
+        },
+        {
+            group_name          : 'Staff',
+            group_organization  : org
+        },
+        {
+            group_name          : 'Executive',
+            group_organization  : org
+        },
+    ])
+    .then(function(g_info){
+        let grp = g_info[2]._doc._id
+
+        GroupMember.create({
+            mem_name        : 'Ian Innocent',
+            mem_group       : grp,
+            mem_phone       : '0725678447',
+            mem_email       : 'ianmin2@live.com',
+            mem_user        : 'ianmin2'
+        }).then(d=>c_log(`\nGroup Members initialized.\n`.succ));
+
+    })
+    .then(d=>c_log(`\nGroups and related entities initialized.\n`.succ));
+
+    //# Load the main Payment methods
+    PaymentMethod.insertMany([
+        {
+            pay_method_name     : "Card"
+        },
+        {
+            pay_method_name     : "Mpesa"
+        },
+        {
+            pay_method_name     : "Cash"
+        },
+        {
+            pay_method_name     : "Cheque"
+        },
+    ])
+    .then(function(pay_meth){
+        let pay = pay_meth[0]._doc._id;
+
+          //# Load the main service
+    Service.create({
+        service_name    : 'SMS',
+        service_fee     : 1,
+        service_code    : 'BX_SMS',   
+    })
+    .then(function(serv_dat){
+
+        let serv = serv_dat._doc._id;
+
+        //# Load the initial service subscription
+        Subscription.create({
+            sub_org         : org,
+            sub_service     : serv
+        }).then(d=>c_log(`\nService subscriptions initialized.\n`.succ));
+
+        //# Load the initial mock payment
+        Payment.create({
+            pay_org             : org,
+            pay_amount          : 10,
+            pay_method          : pay,
+            pay_services        : [serv],
+            pay_message         : '10 logged Complementary SMS messages',
+            pay_token           : 'bixbyte'
+        }).then(d=>c_log(`\nservice payments initialized.\n`.succ));
+
+
+    })
+    .then(d=>c_log(`\nServices and related entities initialized.\n`.succ));
+
+    })
+    .then(d=>c_log(`\nPayment methods  and related entities initialized.\n`.succ));
+
+  
+
+
+    //# Load the mock templates
+    Template.insertMany([
+        {
+            t_name          : 'One',
+            t_content       : 'The main template is this',
+            t_organization  : org
+        },
+        {
+            t_name          : 'Two',
+            t_content       : 'This is but a sample template. Edit it as you see fit',
+            t_organization  : org
+        }
+    ]).then(d=>c_log(`\nTemplates initialized.\n`.succ));
+
+
+})
+.then(d=>c_log(`\nDatabase Initialization complete.\n`.succ))
+.catch(e=>{});

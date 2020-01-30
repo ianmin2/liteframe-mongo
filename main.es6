@@ -1,7 +1,7 @@
 //@ Make the base framify object globally accessible
 Object.assign(global,{ framify :  require( `liteframe-core`) });
 
-const LocalStrategy = require(`passport-local`)
+const LocalStrategy = require(`passport-local`).Strategy
 
 //@ grab a copy of the schema 
 const schema    = require(path.join(__dirname,`/schema/schema.js`)); 
