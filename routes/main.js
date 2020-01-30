@@ -1,5 +1,6 @@
-let auth       = express.Router();
+let auth            = express.Router();
 
+let authenticate    = framify.schema.Member.authenticate();
 
     //@ User PRE - REGISTRATION MIDDLEWARE
     var preventRegistrationSpoofing = function(req,res,next)
@@ -67,52 +68,35 @@ let auth       = express.Router();
         if( isDefined(params, required_fields) )
         {
          
+            //# clear the plaintext password
             if( params.password2 )
             {
                 delete params.password2; 
             }
-            params.password = crypt.md5(params.password);
+          
 
+            //# Perform the actual registration
+            Member.register(params, params.password)
+            .then(function(m_info){
+        
+                let mem = m_info._doc;
 
-            // c_log("\n\n")
-            // console.log( $query )
-            // c_log($field_params)
-            // c_log("\n\n")
+                mem.salt         = undefined;
+                mem.hash         = undefined;
+                mem.__v          = undefined;
+                mem.attempts     = undefined;
                 
+                //# Create the auth token
+                var token = jwt.sign( mem, framify.config.secret, { expiresIn: 36000000000000, issuer: myAddr } )
 
-
-            $connection.query($query,$field_params)
-            .then(inserted =>
-            {
-                log(`${inserted}`.succ);
-                log(`Registered the user ${params["email"]}`.succ);
-
-                //@ Welcome the user to the by SMS platform 
-                // mysms.one( { 
-                //     to:params.telephone, 
-                //     text: 
-                //     `Jambo ${params['name.first']}!\nWelcome to framify!\nYou may now login https://${myAddr}:${app.port}`
-                // } ,{ 
-                //     'user.name': 'userAdmin', 
-                //     'organization': 1, 
-                //     'name.first': 'SYSTEM ROBOT ADMINISTRATOR', 
-                //     'email': 'sms@bixbyte.io',
-                //     'telephone':'+254725678447'
-                // })
-                // .then(()=>{
-                //     // j_log(a)
-                //     log(`Successfully sent a welcome SMS to the user ${params['name.first']} (${params.telephone})`.succ);
-                //     res.json(make_response(200, `Successfully registered ${params['name.first']}.`, params))
-                // })
-                // .catch(e=>{
-                //     c_log(`\n================================================\nERROR AT USER REGISTRATION SMS`.error)
-                //     j_log(e)
-                //     c_log(`\n================================================\n`.error)
-                //     log(`Failed to send a welcome SMS to the user ${params['name.first']} (${params.telephone})`.err);
-                //     res.json(make_response(200, `Successfully registered ${params['name.first']}.`, params))
-                // })
-               
-
+                //# Issue the authentication token
+                res.json( make_response( 200, { token: `JWT ${token}`, key: "BBD14E65-5B05-E611-9411-7427EA2F7F59", me : mem }, { 
+                                                                            role:           mem.role
+                                                                            ,member_id:     mem._id
+                                                                            ,member_name:   { first: mem.name.first, last: mem.name.last  }
+                                                                        } ) );
+        
+                /*
                 //@ Send a welcome message
 
                 //@ Fetch the welcome html template 
@@ -134,7 +118,7 @@ let auth       = express.Router();
                     html: template
                 }
 
-                //@ Send the user a recovery email
+                //@ Send the user an email
                 if (sendMail) {
 
                     sendMail(mailObj)
@@ -155,17 +139,17 @@ let auth       = express.Router();
                     res.json( make_response( 200, `Successfully registered ${params['name.first']}.`) );
                 }
 
-
-
-
-
+                */
+        
             })
             .catch(error => 
             {
-                log(`Failed to register the user ${params['name.first']}.\n\t\t\t\t${str(error.message)}`.err);
-                // console.dir(error.message)
-                res.status(500).json( make_response( 500, `Failed to record the user`, error.message) );
+                log(`Failed to register the user ${params.name.first}.\n\t\t\t\t${str(error.message)}`.err);
+                res.status(500).json( make_response( 500, error.message) );
             });
+
+
+           
             
         }
         else
@@ -186,75 +170,52 @@ let auth       = express.Router();
 
         req.body = get_params( req );
 
-        if( isDefined(req.body, "email,password") )
+        if( isDefined(req.body, "email,password") || isDefined(req.body,"username,password") )
         {
 
-            $connection.query(`SELECT * FROM vw_members WHERE email=$1`,[req.body.email])
-            .then(user=>
-            {
+            //# Keep a copy of the username [with contingency]
+            let username = (req.body.email) ? req.body.email : req.body.username; 
+           
 
-                if(!user[0])
+            var authenticate = Member.authenticate();
+           
+            //# perform authentication against the provided credentials
+            authenticate(username, req.body.password, function(err, result) {
+                //# catch errors
+                if (err) 
                 {
-                    res.status(401).send( make_response( 401, "No such user was found",req.body ) );
+                    log(`Auth error for ${username}:\n${err.message}`) 
+                    res.status(417).send( make_response( 417, "Not all required authentication credentials were provided.") );
                 }
-                else if( !user[0].active )
+                //# Issue the user a definitive JWT
+                // Value 'result' is set to false. The user could not be authenticated since the user is not active
+                else if(result)
                 {
-                    res.status(401).send( make_response( 401, "Your account has been terminated.<br>Please consult an administrator for assistance.",req.body.email ) );
+                    //# Clear the unnecessary fields
+                    result.salt         = undefined;
+                    result.hash         = undefined;
+                    result.__v          = undefined;
+                    result.attempts     = undefined;
+                    
+                    //# Create the auth token
+                    var token = jwt.sign( result, framify.config.secret, { expiresIn: 36000000000000, issuer: myAddr } )
+
+                    //# Issue the authentication token
+                    res.json( make_response( 200, { token: `JWT ${token}`, key: "BBD14E65-5B05-E611-9411-7427EA2F7F59", me : result }, { 
+                                                                                role:           result.role
+                                                                                ,member_id:     result._id
+                                                                                ,member_name:   { first: result.name.first, last: result.name.last  }
+                                                                            } ) );
+
                 }
+                //# Inform the user of the mishap
                 else
                 {
-
-                    var memba = user[0];
-
-                    $connection.query(`SELECT * FROM vw_user_permissions WHERE member_id=${memba.member_id}`)
-                    .then( d => 
-                    {
-                        let usr     = ( d[0] != undefined ) ? d[0].roles   : "";
-                        let orgs    = ( d[0] != undefined ) ? d[0].role_id : "";
-                        memba.roles = usr;
-                        memba.organizations = orgs;
-                    })
-                    .catch( err =>
-                    {
-                        log( `USER PERMISSION FETCH ERROR: \n\t${err.message}`.err );
-                    })
-                    .then( (ab) =>
-                    {
-
-                        if(memba.password.toUpperCase() == crypt.md5(req.body.password).toUpperCase())
-                        {
-
-                            memba.password          = undefined;
-                            memba.transactions      = undefined;
-
-                            var token = jwt.sign( memba, config.secret, { expiresIn: 36000000000000, issuer: myAddr } )
-
-
-
-                            res.json( make_response( 200, { token: `JWT ${token}`, key: "BBD14E65-5B05-E611-9411-7427EA2F7F59", me : memba }, { 
-                                                                                        role:           memba.role
-                                                                                        ,member_id:     memba.member_id
-                                                                                        ,member_name:   { first: memba["name.first"], last: memba["name.last"]  }
-                                                                                    } ) );
-
-
-                        }
-                        else
-                        {
-
-                            res.status(401).send( make_response( 401, "Password does not match.", { code : crypt.md5( req.body.password ) } ) );
-
-                        }
-
-                    })
-                    
-
-                    
-
+                    res.status(401).send( make_response( 401, realError.message,req.body ) );
+                    console.dir(realError);
                 }
-
+                
             });
-
 
         }
         else
@@ -266,51 +227,51 @@ let auth       = express.Router();
 
     });
 
-    //@ SAMPLE PROTECTED ROUTE THAT RETURNS THE LOGED IN USER'S INFORMATION
-    auth.route('/me')
-    .all( function(req,res)
-    {
+    // //@ SAMPLE PROTECTED ROUTE THAT RETURNS THE LOGED IN USER'S INFORMATION
+    // auth.route('/me')
+    // .all( function(req,res)
+    // {
 
-        // console.log(`Attempting a profile data fetch`.info)        
-        $connection.query(`SELECT * FROM vw_members WHERE email=$1 AND role=$2 AND active=$3`,[req.whoami.email,req.whoami.role,1])
-        .then(memberRecord => 
-        {
+    //     // console.log(`Attempting a profile data fetch`.info)        
+    //     $connection.query(`SELECT * FROM vw_members WHERE email=$1 AND role=$2 AND active=$3`,[req.whoami.email,req.whoami.role,1])
+    //     .then(memberRecord => 
+    //     {
 
-            try
-            { 
+    //         try
+    //         { 
 
-                if(memberRecord[0]){
+    //             if(memberRecord[0]){
                 
-                    let l = clone( memberRecord[0] );
-                    l.password      = undefined;
-                    l._id           = undefined;
-                    l.__v           = undefined;    
+    //                 let l = clone( memberRecord[0] );
+    //                 l.password      = undefined;
+    //                 l._id           = undefined;
+    //                 l.__v           = undefined;    
                     
         
-                    res.json( make_response(200, l) );
+    //                 res.json( make_response(200, l) );
     
-                }
-                else
-                {
-                    res.status(401).json(make_response(401,`The user ${req.whoami.email} is an intruder`),'logout');
-                }
+    //             }
+    //             else
+    //             {
+    //                 res.status(401).json(make_response(401,`The user ${req.whoami.email} is an intruder`),'logout');
+    //             }
     
-            }
-            catch(e)
-            {
-                res.status(401).json(make_response(401,`The user ${req.whoami.email} is an intruder`));
-            }
+    //         }
+    //         catch(e)
+    //         {
+    //             res.status(401).json(make_response(401,`The user ${req.whoami.email} is an intruder`));
+    //         }
             
            
 
-        })
-        .catch(e=>
-        {
-            res.status(500).send( make_response(500, e.message) );
-        });
+    //     })
+    //     .catch(e=>
+    //     {
+    //         res.status(500).send( make_response(500, e.message) );
+    //     });
 
-    });
+    // });
 
-    auth.use('/passwords', require('./password-recovery.js'));
+    // auth.use('/passwords', require('./password-recovery.js'));
    
     module.exports =  auth;

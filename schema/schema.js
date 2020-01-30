@@ -367,6 +367,7 @@ memberSchema.plugin(passportLocalMongoose, {
     limitAttempts       : true,
     maxAttempts         : 12,
     usernameQueryFields : ["account.name"],
+    TooManyAttemptsError: "Account locked due to too many failed login attempts; consult admin for unlocking."
 });
 
 const Member = mongoose.model("Member",memberSchema);
@@ -815,6 +816,9 @@ exports.SMSContactTag = mongoose.model("SMSContactTag",SMSContactTagSchema);
 //--==========================================================================================================
 //# Perform database initialization [where applicable]
 
+
+
+
 //# Define the main organization
 Organization.create({    
     org_name        : "Bixbyte Solutions",
@@ -953,4 +957,32 @@ Organization.create({
 
 })
 .then(d=>c_log(`\nDatabase Initialization complete.\n`.succ))
-.catch(e=>{});
+.catch(e=>{})
+.finally(d=>{
+    c_log(`\n\n\nTesting authentication`.yell)
+   
+
+    var authenticate = Member.authenticate();
+    authenticate('useradmin@bixbyte.io', 'ianmin2', function(err, result,realError) {
+        if (err) { c_log(err) }
+        if(result){
+            console.log('Loged in'.succ);
+            result.salt         = undefined;
+            result.hash         = undefined;
+            result.__v          = undefined;
+            result.attempts     = undefined;
+            console.log(result);
+        }
+        else
+        {
+
+            // const user = new DefaultUser({username: 'useradmin@bixbyte.io'});
+
+            console.log(`Authentication failed`.err)
+            console.dir(realError.message);
+        }
+        // Value 'result' is set to false. The user could not be authenticated since the user is not active
+    });
+
+
+});
