@@ -4,8 +4,20 @@
 //@ Define the authentication database [mongo/sql]
 global.authMeth = "mongo";
 
-//@ Set the application's running port [the default port is 1357]
-app.port = "2433";
+
+//@ +====================================================================================
+//# General configuration
+
+//@ Import the main configuration file
+framify.inject( [{ config: require(path.join(__dirname,'/config/config')) }] );
+
+//@ Avail encrypt/decrypt methods globally
+framify.inject([ require( path.join(__dirname, '/utilities/encrypt-decrypt.js') )] );
+
+//# update the application's default port from the configuration
+app.port = framify.config.port;
+
+
 
 //@ Allow
 var allowCrossDomain = function(req, res, next) {
@@ -25,17 +37,6 @@ framify.inject('new_expiry', (minutes = 120,date=new Date().toISOString())  =>
     let now = new Date(date);
     return new Date(now.valueOf() + ( minutes * 60000));
 });
-
-//@ +====================================================================================
-//# General configuration
-
-//@ Import the main configuration file
-framify.inject( [{ config: require(path.join(__dirname,'/config/config')) }] );
-
-//@ Avail encrypt/decrypt methods globally
-framify.inject([ require( path.join(__dirname, '/utilities/encrypt-decrypt.js') )] );
-
-
 
 //@ +======================================================================================
 //# Database connection Related configuration

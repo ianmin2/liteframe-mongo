@@ -175,17 +175,18 @@ let authenticate    = framify.schema.Member.authenticate();
 
             //# Keep a copy of the username [with contingency]
             let username = (req.body.email) ? req.body.email : req.body.username; 
-           
+            c_log(`--------------`.yell)
+            c_log(username)
+            c_log(`--------------`.yell)
 
-            var authenticate = Member.authenticate();
-           
             //# perform authentication against the provided credentials
-            authenticate(username, req.body.password, function(err, result) {
+            framify.schema.Member.authenticate()( username , req.body.password, function(err, result, realError) {
                 //# catch errors
                 if (err) 
                 {
                     log(`Auth error for ${username}:\n${err.message}`) 
-                    res.status(417).send( make_response( 417, "Not all required authentication credentials were provided.") );
+                    c_log(err)
+                    res.status(417).send( make_response( 417, err.message) );
                 }
                 //# Issue the user a definitive JWT
                 // Value 'result' is set to false. The user could not be authenticated since the user is not active
@@ -211,8 +212,7 @@ let authenticate    = framify.schema.Member.authenticate();
                 //# Inform the user of the mishap
                 else
                 {
-                    res.status(401).send( make_response( 401, realError.message,req.body ) );
-                    console.dir(realError);
+                    res.status(401).send( make_response( 401, realError.message ) );
                 }
                 
             });
@@ -221,7 +221,7 @@ let authenticate    = framify.schema.Member.authenticate();
         else
         {
 
-            res.status(417).send( make_response( 417, "Not all required authentication credentials were provided.") );
+            res.status(417).send( make_response( 417, "Not all required authentication credentials were provided.", req.body) );
 
         }
 
