@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/ianmin2/liteframe-mongo#readme",
   "dependencies": {
-    "mongoose": "^5.8.9",
+    "mongoose": "^5.13.15",
     "passport": "^0.4.1",
     "passport-local": "^1.0.0",
     "passport-local-mongoose": "^6.0.1",
